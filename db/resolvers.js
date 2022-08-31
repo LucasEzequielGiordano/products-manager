@@ -1,4 +1,5 @@
 const User = require("../models/user");
+const Product = require("../models/product");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config({ path: ".env" });
@@ -17,9 +18,26 @@ const resolvers = {
             const userID = await jwt.verify(token, process.env.SECRET);
             return userID;
         },
+        getProducts: async () => {
+            try {
+                const products = await Product.find({});
+                return products;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getProduct: async (_, { id }) => {
+            // check if the product exists or not
+            const product = await Product.findById(id);
+            if (!product) {
+                throw new Error("Product not found");
+            }
+            return product;
+        },
     },
 
     Mutation: {
+        // Users
         newUser: async (_, { input }) => {
             const { email, password } = input;
             // check if the user exists
@@ -41,6 +59,7 @@ const resolvers = {
                 console.log(error);
             }
         },
+        // Auth Users
         authenticateUser: async (_, { input }) => {
             const { email, password } = input;
 
@@ -63,6 +82,42 @@ const resolvers = {
             return {
                 token: createToken(userExist, process.env.SECRET, "24h"),
             };
+        },
+        // New Product
+        newProduct: async (_, { input }) => {
+            try {
+                const product = new Product(input);
+
+                // save in DB
+                const result = await product.save();
+                return result;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        updateProduct: async (_, { id, input }) => {
+            // check if the product exists or not
+            let product = await Product.findById(id);
+            if (!product) {
+                throw new Error("Product not found");
+            }
+
+            // save in DB
+            product = await Product.findOneAndUpdate({ _id: id }, input, {
+                new: true,
+            });
+            return product;
+        },
+        deleteProduct: async (_, { id }) => {
+            // check if the product exists or not
+            let product = await Product.findById(id);
+            if (!product) {
+                throw new Error("Product not found");
+            }
+
+            // delete
+            await Product.findOneAndDelete({ _id: id });
+            return "Product deleted";
         },
     },
 };

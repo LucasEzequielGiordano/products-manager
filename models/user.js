@@ -21,7 +21,7 @@ const UserSchema = mongoose.Schema({
         required: true,
         trim: true,
     },
-    create: {
+    created: {
         type: Date,
         default: Date.now(),
     },
