@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const Product = require("../models/product");
+const Client = require("../models/client");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config({ path: ".env" });
@@ -33,6 +34,37 @@ const resolvers = {
                 throw new Error("Product not found");
             }
             return product;
+        },
+        getClients: async () => {
+            try {
+                const clients = await Client.find({});
+                return clients;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getClientsSeller: async (_, {}, ctx) => {
+            try {
+                const clients = await Client.find({
+                    seller: ctx.user.id.toString(),
+                });
+                return clients;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getClient: async (_, { id }, ctx) => {
+            // verify if the client exists or not
+            const client = await Client.findById(id);
+            if (!client) {
+                throw new Error("Client not found");
+            }
+
+            // who created it can see it
+            if (client.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have permissions to view this");
+            }
+            return client;
         },
     },
 
@@ -118,6 +150,60 @@ const resolvers = {
             // delete
             await Product.findOneAndDelete({ _id: id });
             return "Product deleted";
+        },
+        newClient: async (_, { input }, ctx) => {
+            const { email } = input;
+            // check if the customer is already registered
+            const client = await Client.findOne({ email });
+            if (client) {
+                throw new Error("The client is already registered");
+            }
+            const newClient = new Client(input);
+
+            // assign the seller
+            newClient.seller = ctx.user.id;
+
+            // save in DB
+            try {
+                const result = await newClient.save();
+                return result;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        updateClient: async (_, { id, input }, ctx) => {
+            // check if the client exists or not
+            let client = await Client.findById(id);
+            if (!client) {
+                throw new Error("The client doesn't exist");
+            }
+
+            // verify if the seller is the publisher
+            if (client.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have the permissions to access");
+            }
+
+            // save in DB
+            client = await Client.findOneAndUpdate({ _id: id }, input, {
+                new: true,
+            });
+            return client;
+        },
+        deleteClient: async (_, { id }, ctx) => {
+            // check if the client exists or not
+            let client = await Client.findById(id);
+            if (!client) {
+                throw new Error("The client doesn't exist");
+            }
+
+            // verify if the seller is the publisher
+            if (client.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have the permissions to access");
+            }
+
+            // delete client
+            await Client.findOneAndDelete({ _id: id });
+            return "Client deleted";
         },
     },
 };
